@@ -2,21 +2,20 @@ const express = require('express');
 const { requireAuth } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
 const {
-  createPatient,
-  getPatient,
-} = require('../controllers/patient.controller');
+  inviteMember,
+  acceptInvite,
+  listMembers,
+} = require('../controllers/membership.controller');
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
-router.post('/', requireAuth, createPatient);
+router.post('/', requireAuth, requireRole('familyAdmin'), inviteMember);
+router.post('/accept', requireAuth, acceptInvite);
 router.get(
-  '/:patientId',
+  '/',
   requireAuth,
   requireRole('familyAdmin', 'contributor', 'attendant', 'clinician'),
-  getPatient
+  listMembers
 );
-
-const membershipRoutes = require('./membership.routes');
-router.use('/:patientId/members', membershipRoutes);
 
 module.exports = router;
