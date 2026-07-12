@@ -34,16 +34,14 @@ const memorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// The anti-poisoning rule, enforced at the schema level
-memorySchema.pre('save', function (next) {
+memorySchema.pre('save', async function () {
   if (
     this.status === 'approved' &&
     this.approvedBy &&
     this.approvedBy.equals(this.uploadedBy)
   ) {
-    return next(new Error('a memory cannot be approved by its uploader'));
+    throw new Error('a memory cannot be approved by its uploader');
   }
-  next();
 });
 
 module.exports = mongoose.model('Memory', memorySchema);

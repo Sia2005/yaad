@@ -19,4 +19,7 @@ router.get(
 const membershipRoutes = require('./membership.routes');
 router.use('/:patientId/members', membershipRoutes);
 
+const memoryRoutes = require('./memory.routes');
+router.use('/:patientId/memories', memoryRoutes);
+
 module.exports = router;
