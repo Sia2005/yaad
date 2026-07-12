@@ -8,6 +8,7 @@ const {
   listMemories,
   reviewMemory,
   searchMemories,
+  askQuestion,
 } = require('../controllers/memory.controller');
 
 const upload = multer({
@@ -51,6 +52,13 @@ router.post(
   requireAuth,
   requireRole('familyAdmin'),
   reviewMemory
+);
+
+router.post(
+  '/:patientId/ask',
+  requireAuth,
+  requireRole('familyAdmin', 'contributor', 'attendant'),
+  askQuestion
 );
 
 

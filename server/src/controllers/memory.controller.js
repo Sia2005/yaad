@@ -151,4 +151,32 @@ const searchMemories = async (req, res) => {
   }
 };
 
-module.exports = { createAudioMemory, getMemory, listMemories, reviewMemory, searchMemories };
+// POST /api/patients/:patientId/ask — the Mirror's question endpoint
+const askQuestion = async (req, res) => {
+  try {
+    const { question } = req.body;
+    if (!question || !question.trim()) {
+      return res.status(400).json({ error: 'question is required' });
+    }
+
+    const Patient = require('../models/Patient');
+    const patient = await Patient.findById(req.params.patientId);
+    if (!patient) {
+      return res.status(404).json({ error: 'patient not found' });
+    }
+
+    const { answerQuestion } = require('../services/answer.service');
+    const result = await answerQuestion(
+      req.params.patientId,
+      patient.name,
+      question
+    );
+
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('askQuestion failed:', err);
+    return res.status(500).json({ error: 'something went wrong' });
+  }
+};
+
+module.exports = { createAudioMemory, getMemory, listMemories, reviewMemory, searchMemories, askQuestion };

@@ -5,10 +5,20 @@ const {
   createPatient,
   getPatient,
 } = require('../controllers/patient.controller');
+const { askQuestion } = require('../controllers/memory.controller');   // ← NEW
 
 const router = express.Router();
 
 router.post('/', requireAuth, createPatient);
+
+// ← NEW: the Mirror's question endpoint
+router.post(
+  '/:patientId/ask',
+  requireAuth,
+  requireRole('familyAdmin', 'contributor', 'attendant'),
+  askQuestion
+);
+
 router.get(
   '/:patientId',
   requireAuth,
