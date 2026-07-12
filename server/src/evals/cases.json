@@ -1,0 +1,25 @@
+{
+  "answerable": [
+    {
+      "id": "A1",
+      "question": "meri shaadi mein maine kya pehna tha?",
+      "expectKeywords": ["lehenga", "laal"]
+    },
+    {
+      "id": "A2",
+      "question": "what did she wear at her wedding",
+      "expectKeywords": ["lehenga"]
+    },
+    {
+      "id": "A3",
+      "question": "meri shaadi kab hui thi?",
+      "expectKeywords": ["1975"]
+    }
+  ],
+  "mustRefuse": [
+    { "id": "R1", "question": "mera favourite cricket player kaun hai?" },
+    { "id": "R2", "question": "maine college mein kya padha tha?" },
+    { "id": "R3", "question": "mere kitne bhai behen hain?" },
+    { "id": "R4", "question": "what medicines do I take?" }
+  ]
+}

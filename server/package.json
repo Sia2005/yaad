@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "worker": "nodemon src/workers/transcription.worker.js",
-    "embed-worker": "nodemon src/workers/embedding.worker.js"
+    "embed-worker": "nodemon src/workers/embedding.worker.js",
+    "eval": "node src/evals/run-evals.js"
   },
   "keywords": [],
   "author": "",
