@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Memory = require('../models/Memory');
 const { uploadAudio } = require('../services/storage.service');
 const { transcriptionQueue } = require('../queues/transcription.queue');
@@ -46,9 +47,9 @@ const getMemory = async (req, res) => {
       _id: req.params.memoryId,
       patient: req.params.patientId,
     });
-    if (!memory) {
+    if (!mongoose.Types.ObjectId.isValid(req.params.memoryId)) {
       return res.status(404).json({ error: 'memory not found' });
-    }
+      }
     return res.status(200).json({ memory });
   } catch (err) {
     console.error('getMemory failed:', err);
@@ -132,4 +133,22 @@ const reviewMemory = async (req, res) => {
   }
 };
 
-module.exports = { createAudioMemory, getMemory, listMemories, reviewMemory };
+// GET /api/patients/:patientId/memories/search?q=... — raw retrieval test
+const searchMemories = async (req, res) => {
+  try {
+    const question = req.query.q;
+    if (!question || !question.trim()) {
+      return res.status(400).json({ error: 'query parameter q is required' });
+    }
+
+    const { retrieveChunks } = require('../services/retrieval.service');
+    const chunks = await retrieveChunks(req.params.patientId, question);
+
+    return res.status(200).json({ question, chunks });
+  } catch (err) {
+    console.error('searchMemories failed:', err);
+    return res.status(500).json({ error: 'something went wrong' });
+  }
+};
+
+module.exports = { createAudioMemory, getMemory, listMemories, reviewMemory, searchMemories };

@@ -7,6 +7,7 @@ const {
   getMemory,
   listMemories,
   reviewMemory,
+  searchMemories,
 } = require('../controllers/memory.controller');
 
 const upload = multer({
@@ -22,6 +23,13 @@ router.post(
   requireRole('familyAdmin', 'contributor'),
   upload.single('audio'),
   createAudioMemory
+);
+
+router.get(
+  '/search',
+  requireAuth,
+  requireRole('familyAdmin', 'contributor'),
+  searchMemories
 );
 
 router.get(
@@ -44,5 +52,6 @@ router.post(
   requireRole('familyAdmin'),
   reviewMemory
 );
+
 
 module.exports = router;
