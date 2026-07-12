@@ -5,6 +5,8 @@ const { requireRole } = require('../middleware/role.middleware');
 const {
   createAudioMemory,
   getMemory,
+  listMemories,
+  reviewMemory,
 } = require('../controllers/memory.controller');
 
 const upload = multer({
@@ -27,6 +29,20 @@ router.get(
   requireAuth,
   requireRole('familyAdmin', 'contributor', 'attendant', 'clinician'),
   getMemory
+);
+
+router.get(
+  '/',
+  requireAuth,
+  requireRole('familyAdmin', 'contributor', 'attendant', 'clinician'),
+  listMemories
+);
+
+router.post(
+  '/:memoryId/review',
+  requireAuth,
+  requireRole('familyAdmin'),
+  reviewMemory
 );
 
 module.exports = router;
