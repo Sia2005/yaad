@@ -1,6 +1,7 @@
 const Memory = require('../models/Memory');
 const { uploadAudio } = require('../services/storage.service');
 const { transcriptionQueue } = require('../queues/transcription.queue');
+const { embeddingQueue } = require('../queues/embedding.queue');
 
 // POST /api/patients/:patientId/memories — familyAdmin or contributor
 const createAudioMemory = async (req, res) => {
@@ -117,6 +118,11 @@ const reviewMemory = async (req, res) => {
       throw err;
     }
 
+    // approved memories enter the embedding pipeline
+    if (decision === 'approved') {
+      await embeddingQueue.add('embed', { memoryId: memory._id.toString() });
+    }
+
     return res.status(200).json({
       memory: { id: memory._id, status: memory.status },
     });
@@ -126,4 +132,4 @@ const reviewMemory = async (req, res) => {
   }
 };
 
-module.exports = { createAudioMemory, getMemory, listMemories, reviewMemory};
+module.exports = { createAudioMemory, getMemory, listMemories, reviewMemory };
