@@ -5,7 +5,7 @@ const {
   createPatient,
   getPatient,
 } = require('../controllers/patient.controller');
-const { askQuestion } = require('../controllers/memory.controller');   // ← NEW
+const { askQuestion, speakText } = require('../controllers/memory.controller');
 
 const router = express.Router();
 
@@ -24,6 +24,13 @@ router.get(
   requireAuth,
   requireRole('familyAdmin', 'contributor', 'attendant', 'clinician'),
   getPatient
+);
+
+router.post(
+  '/:patientId/speak',
+  requireAuth,
+  requireRole('familyAdmin', 'contributor', 'attendant'),
+  speakText
 );
 
 const membershipRoutes = require('./membership.routes');

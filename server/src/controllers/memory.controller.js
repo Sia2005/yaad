@@ -179,4 +179,27 @@ const askQuestion = async (req, res) => {
   }
 };
 
-module.exports = { createAudioMemory, getMemory, listMemories, reviewMemory, searchMemories, askQuestion };
+// POST /api/patients/:patientId/speak — TTS for an answer text
+const speakText = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    if (text.length > 500) {
+      return res.status(400).json({ error: 'text too long' });
+    }
+
+    const { speak } = require('../services/tts.service');
+    const { audio, cached } = await speak(req.params.patientId, text.trim());
+
+    res.set('Content-Type', 'audio/wav');
+    res.set('X-TTS-Cache', cached ? 'hit' : 'miss');
+    return res.status(200).send(audio);
+  } catch (err) {
+    console.error('speakText failed:', err);
+    return res.status(500).json({ error: 'something went wrong' });
+  }
+};
+
+module.exports = { createAudioMemory, getMemory, listMemories, reviewMemory, searchMemories, askQuestion, speakText };
