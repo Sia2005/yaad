@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api, getToken } from '../../api/client';
 
 const IDLE_CLEAR_MS = 90 * 1000;
-const BASE = 'http://localhost:5000/api';
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function Mirror() {
   const { patientId } = useParams();
