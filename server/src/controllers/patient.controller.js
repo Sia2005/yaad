@@ -51,4 +51,18 @@ const getPatient = async (req, res) => {
   }
 };
 
-module.exports = { createPatient, getPatient };
+// GET /api/patients/:patientId/patterns — caregiver + clinician analytics
+const getPatientPatterns = async (req, res) => {
+  try {
+    const { getPatterns } = require('../services/patterns.service');
+    const data = await getPatterns(
+      new (require('mongoose').Types.ObjectId)(req.params.patientId)
+    );
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('getPatientPatterns failed:', err);
+    return res.status(500).json({ error: 'something went wrong' });
+  }
+};
+
+module.exports = { createPatient, getPatient, getPatientPatterns };

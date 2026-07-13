@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Memory = require('../models/Memory');
+const Interaction = require('../models/Interaction');
 const { uploadAudio } = require('../services/storage.service');
 const { transcriptionQueue } = require('../queues/transcription.queue');
 const { embeddingQueue } = require('../queues/embedding.queue');
@@ -43,13 +44,17 @@ const createAudioMemory = async (req, res) => {
 // GET /api/patients/:patientId/memories/:memoryId — poll status
 const getMemory = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.memoryId)) {
+      return res.status(404).json({ error: 'memory not found' });
+    }
+
     const memory = await Memory.findOne({
       _id: req.params.memoryId,
       patient: req.params.patientId,
     });
-    if (!mongoose.Types.ObjectId.isValid(req.params.memoryId)) {
+    if (!memory) {
       return res.status(404).json({ error: 'memory not found' });
-      }
+    }
     return res.status(200).json({ memory });
   } catch (err) {
     console.error('getMemory failed:', err);
@@ -171,6 +176,16 @@ const askQuestion = async (req, res) => {
       patient.name,
       question
     );
+
+    // fire-and-forget interaction log — never block or fail the answer
+    Interaction.create({
+      patient: req.params.patientId,
+      question: question.trim(),
+      normalizedQuestion: question.trim().toLowerCase().replace(/[?!.,]/g, ''),
+      refused: result.refused,
+      topScore: result.sources[0]?.score,
+      hourOfDay: new Date().getHours(),
+    }).catch((e) => console.error('interaction log failed:', e.message));
 
     return res.status(200).json(result);
   } catch (err) {

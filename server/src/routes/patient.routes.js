@@ -4,6 +4,7 @@ const { requireRole } = require('../middleware/role.middleware');
 const {
   createPatient,
   getPatient,
+  getPatientPatterns,
 } = require('../controllers/patient.controller');
 const { askQuestion, speakText } = require('../controllers/memory.controller');
 
@@ -31,6 +32,13 @@ router.post(
   requireAuth,
   requireRole('familyAdmin', 'contributor', 'attendant'),
   speakText
+);
+
+router.get(
+  '/:patientId/patterns',
+  requireAuth,
+  requireRole('familyAdmin', 'contributor', 'clinician'),
+  getPatientPatterns
 );
 
 const membershipRoutes = require('./membership.routes');
