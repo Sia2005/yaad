@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const Memory = require('../models/Memory');
 const Interaction = require('../models/Interaction');
+const Consent = require('../models/Consent');
 const { uploadAudio } = require('../services/storage.service');
 const { transcriptionQueue } = require('../queues/transcription.queue');
 const { embeddingQueue } = require('../queues/embedding.queue');
+const { audit } = require('../services/audit.service');
 
 // POST /api/patients/:patientId/memories — familyAdmin or contributor
 const createAudioMemory = async (req, res) => {
@@ -31,6 +33,8 @@ const createAudioMemory = async (req, res) => {
     });
 
     await transcriptionQueue.add('transcribe', { memoryId: memory._id.toString() });
+
+    audit(patientId, req.userId, 'memory.uploaded', memory._id.toString(), { title });
 
     return res.status(202).json({
       memory: { id: memory._id, status: memory.status, title: memory.title },
@@ -129,6 +133,8 @@ const reviewMemory = async (req, res) => {
       await embeddingQueue.add('embed', { memoryId: memory._id.toString() });
     }
 
+    audit(req.params.patientId, req.userId, 'memory.' + decision, memory._id.toString());
+
     return res.status(200).json({
       memory: { id: memory._id, status: memory.status },
     });
@@ -164,7 +170,14 @@ const askQuestion = async (req, res) => {
       return res.status(400).json({ error: 'question is required' });
     }
 
+    const Consent = require('../models/Consent');
+    const consent = await Consent.findOne({ patient: req.params.patientId });
+    if (consent && consent.state === 'frozen') {
+      return res.status(403).json({ error: 'this memory bank is currently frozen' });
+    }
+
     const Patient = require('../models/Patient');
+    
     const patient = await Patient.findById(req.params.patientId);
     if (!patient) {
       return res.status(404).json({ error: 'patient not found' });
@@ -203,6 +216,12 @@ const speakText = async (req, res) => {
     }
     if (text.length > 500) {
       return res.status(400).json({ error: 'text too long' });
+    }
+
+    const Consent = require('../models/Consent');
+    const consent = await Consent.findOne({ patient: req.params.patientId });
+    if (consent && consent.state === 'frozen') {
+      return res.status(403).json({ error: 'this memory bank is currently frozen' });
     }
 
     const { speak } = require('../services/tts.service');
