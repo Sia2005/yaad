@@ -7,9 +7,11 @@ const {
   getPatientPatterns,
   getAuditLog,
   updateConsent,
+  listMyPatients,
+  getDashboard
 } = require('../controllers/patient.controller');
 const { askQuestion, speakText } = require('../controllers/memory.controller');
-
+const { postDailyNote, listDailyNotes } = require('../controllers/dailyNote.controller');
 const router = express.Router();
 
 router.post('/', requireAuth, createPatient);
@@ -26,6 +28,29 @@ router.post(
   requireAuth,
   requireRole('familyAdmin', 'contributor', 'attendant'),
   speakText
+);
+
+router.get('/', requireAuth, listMyPatients);
+
+router.post(
+  '/:patientId/daily',
+  requireAuth,
+  requireRole('familyAdmin', 'attendant'),
+  postDailyNote
+);
+
+router.get(
+  '/:patientId/daily',
+  requireAuth,
+  requireRole('familyAdmin', 'contributor', 'attendant', 'clinician'),
+  listDailyNotes
+);
+
+router.get(
+  '/:patientId/dashboard',
+  requireAuth,
+  requireRole('familyAdmin', 'contributor', 'attendant', 'clinician'),
+  getDashboard
 );
 
 router.get(
@@ -55,6 +80,7 @@ router.get(
   requireRole('familyAdmin', 'contributor', 'attendant', 'clinician'),
   getPatient
 );
+
 
 const membershipRoutes = require('./membership.routes');
 router.use('/:patientId/members', membershipRoutes);

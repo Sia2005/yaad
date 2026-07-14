@@ -37,6 +37,32 @@ const createPatient = async (req, res) => {
   }
 };
 
+// GET /api/patients — patients I can access (active) + invites awaiting me (pending)
+const listMyPatients = async (req, res) => {
+  try {
+    const memberships = await FamilyMembership.find({
+      user: req.userId,
+      status: { $in: ['active', 'invited'] },
+    }).populate('patient', 'name preferredLanguage stage');
+
+    const patients = memberships
+      .filter((m) => m.patient)
+      .map((m) => ({
+        id: m.patient._id,
+        name: m.patient.name,
+        preferredLanguage: m.patient.preferredLanguage,
+        stage: m.patient.stage,
+        role: m.role,
+        pending: m.status === 'invited', // true = needs accepting
+      }));
+
+    return res.status(200).json({ patients });
+  } catch (err) {
+    console.error('listMyPatients failed:', err);
+    return res.status(500).json({ error: 'something went wrong' });
+  }
+};
+
 // GET /api/patients/:patientId — any active member of that family
 const getPatient = async (req, res) => {
   try {
@@ -120,10 +146,60 @@ const updateConsent = async (req, res) => {
   }
 };
 
+// GET /api/patients/:patientId/dashboard — one bundle for the caregiver dashboard
+const getDashboard = async (req, res) => {
+  try {
+    const Memory = require('../models/Memory');
+    const Consent = require('../models/Consent');
+    const patientId = req.params.patientId;
+
+    const patient = await Patient.findById(patientId);
+    if (!patient) return res.status(404).json({ error: 'patient not found' });
+
+    const [approvedCount, pending, members, consent] = await Promise.all([
+      Memory.countDocuments({ patient: patientId, status: 'approved' }),
+      Memory.find({ patient: patientId, status: 'pending' })
+        .sort({ createdAt: -1 })
+        .populate('uploadedBy', 'name'),
+      FamilyMembership.find({ patient: patientId, status: { $ne: 'removed' } })
+        .populate('user', 'name email'),
+      Consent.findOne({ patient: patientId }),
+    ]);
+
+    return res.status(200).json({
+      patient: { id: patient._id, name: patient.name, stage: patient.stage },
+      yourRole: req.membership.role,
+      approvedCount,
+      pending: pending.map((m) => ({
+        id: m._id,
+        title: m.title,
+        uploadedBy: m.uploadedBy?.name || 'Someone',
+        createdAt: m.createdAt,
+        excerpt: m.transcript ? m.transcript.slice(0, 140) : '',
+      })),
+      members: members.map((m) => ({
+        id: m._id,
+        name: m.user?.name,
+        email: m.user?.email,
+        role: m.role,
+        status: m.status,
+      })),
+      consent: consent
+        ? { state: consent.state, voiceCloningPermitted: consent.voiceCloningPermitted }
+        : null,
+    });
+  } catch (err) {
+    console.error('getDashboard failed:', err);
+    return res.status(500).json({ error: 'something went wrong' });
+  }
+};
+
 module.exports = {
   createPatient,
+  listMyPatients,
   getPatient,
   getPatientPatterns,
   getAuditLog,
   updateConsent,
+  getDashboard
 };
