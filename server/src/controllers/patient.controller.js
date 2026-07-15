@@ -151,20 +151,27 @@ const getDashboard = async (req, res) => {
   try {
     const Memory = require('../models/Memory');
     const Consent = require('../models/Consent');
+    const DailyNote = require('../models/DailyNote');
+    const { getPatterns } = require('../services/patterns.service');
     const patientId = req.params.patientId;
 
     const patient = await Patient.findById(patientId);
     if (!patient) return res.status(404).json({ error: 'patient not found' });
 
-    const [approvedCount, pending, members, consent] = await Promise.all([
-      Memory.countDocuments({ patient: patientId, status: 'approved' }),
-      Memory.find({ patient: patientId, status: 'pending' })
-        .sort({ createdAt: -1 })
-        .populate('uploadedBy', 'name'),
-      FamilyMembership.find({ patient: patientId, status: { $ne: 'removed' } })
-        .populate('user', 'name email'),
-      Consent.findOne({ patient: patientId }),
-    ]);
+    const [approvedCount, pending, members, consent, dailyNotes, patterns] =
+      await Promise.all([
+        Memory.countDocuments({ patient: patientId, status: 'approved' }),
+        Memory.find({ patient: patientId, status: 'pending' })
+          .sort({ createdAt: -1 })
+          .populate('uploadedBy', 'name'),
+        FamilyMembership.find({ patient: patientId, status: { $ne: 'removed' } })
+          .populate('user', 'name email'),
+        Consent.findOne({ patient: patientId }),
+        DailyNote.find({ patient: patientId })
+          .sort({ createdAt: -1 })
+          .populate('author', 'name'),
+        getPatterns(new (require('mongoose').Types.ObjectId)(patientId)),
+      ]);
 
     return res.status(200).json({
       patient: { id: patient._id, name: patient.name, stage: patient.stage },
@@ -187,6 +194,15 @@ const getDashboard = async (req, res) => {
       consent: consent
         ? { state: consent.state, voiceCloningPermitted: consent.voiceCloningPermitted }
         : null,
+      dailyNotes: dailyNotes.map((n) => ({
+        id: n._id,
+        text: n.text,
+        author: n.author?.name || 'Someone',
+        createdAt: n.createdAt,
+        expiresAt: n.expiresAt,
+      })),
+      insights: patterns.alerts || [],
+      totalInteractions: patterns.totalInteractions || 0,
     });
   } catch (err) {
     console.error('getDashboard failed:', err);

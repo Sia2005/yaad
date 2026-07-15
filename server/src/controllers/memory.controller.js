@@ -165,7 +165,7 @@ const searchMemories = async (req, res) => {
 // POST /api/patients/:patientId/ask — the Mirror's question endpoint
 const askQuestion = async (req, res) => {
   try {
-    const { question } = req.body;
+    const { question, perspective } = req.body;
     if (!question || !question.trim()) {
       return res.status(400).json({ error: 'question is required' });
     }
@@ -187,10 +187,12 @@ const askQuestion = async (req, res) => {
     const result = await answerQuestion(
       req.params.patientId,
       patient.name,
-      question
+      question,
+      perspective === 'family' ? 'family' : 'patient'
     );
 
     // fire-and-forget interaction log — never block or fail the answer
+     if (perspective !== 'family') {
     Interaction.create({
       patient: req.params.patientId,
       question: question.trim(),
@@ -199,7 +201,7 @@ const askQuestion = async (req, res) => {
       topScore: result.sources[0]?.score,
       hourOfDay: new Date().getHours(),
     }).catch((e) => console.error('interaction log failed:', e.message));
-
+  }
     return res.status(200).json(result);
   } catch (err) {
     console.error('askQuestion failed:', err);

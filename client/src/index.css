@@ -1,1 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-body bg-paper text-ink antialiased;
+  }
+}
+
+/* the signature: faint ruled-paper baseline */
+.ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2.35rem,
+    rgba(58, 107, 110, 0.12) 2.35rem,
+    rgba(58, 107, 110, 0.12) calc(2.35rem + 1px)
+  );
+}

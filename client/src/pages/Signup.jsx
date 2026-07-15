@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export default function Login() {
-  const { login } = useAuth();
+export default function Signup() {
+  const { signup } = useAuth();
   const navigate = useNavigate();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -15,8 +16,8 @@ export default function Login() {
     setError('');
     setBusy(true);
     try {
-      await login(email, password);
-      navigate('/');
+      await signup(name, email, password);
+      navigate('/'); // land on the patient picker
     } catch (err) {
       setError(err.message);
     } finally {
@@ -26,7 +27,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex">
-      {/* left: the emotional panel */}
       <div className="hidden md:flex md:w-1/2 bg-ink text-paper flex-col justify-between p-12 relative overflow-hidden">
         <div
           className="pointer-events-none absolute left-1/2 -translate-x-1/2 -bottom-1/4 w-4/5 h-2/3"
@@ -36,27 +36,30 @@ export default function Login() {
           }}
         />
         <div className="font-display text-3xl text-marigold/85 z-10">Yaad</div>
-        <div className="z-10">
-          <p className="font-display text-[2.2rem] leading-[1.35] max-w-[14em]">
-            The memories they can no longer hold, kept safe by the people who love
-            them.
-          </p>
-          <p className="font-body text-sage mt-6 text-sm tracking-wide">
-            A memory companion for families living with dementia.
-          </p>
-        </div>
-        <div className="z-10 font-body text-xs text-sage/60 tracking-widest uppercase">
+        <p className="font-display text-[2rem] leading-[1.35] max-w-[13em] z-10">
+          Start keeping the memories that matter, before they fade.
+        </p>
+        <div className="font-body text-xs tracking-[0.15em] uppercase text-sage/60 z-10">
           Care, not cure
         </div>
       </div>
 
-      {/* right: the form */}
       <div className="w-full md:w-1/2 flex items-center justify-center p-8">
         <form onSubmit={submit} className="w-full max-w-sm">
-          <h1 className="font-display text-3xl mb-1">Welcome back</h1>
+          <h1 className="font-display text-3xl mb-1">Create your account</h1>
           <p className="font-body text-sage mb-8">
-            Log in to your family's memory keeper.
+            You can invite the rest of the family once you're in.
           </p>
+
+          <label className="block font-body text-xs uppercase tracking-widest text-sage mb-1">
+            Your name
+          </label>
+          <input
+            className="w-full mb-5 px-4 py-3 rounded-lg border border-sage/40 bg-white font-body text-ink outline-none focus:border-teal"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
 
           <label className="block font-body text-xs uppercase tracking-widest text-sage mb-1">
             Email
@@ -77,6 +80,7 @@ export default function Login() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
             required
           />
 
@@ -86,13 +90,13 @@ export default function Login() {
             disabled={busy}
             className="w-full mt-4 py-3 rounded-lg bg-ink text-paper font-body font-medium hover:bg-teal transition disabled:opacity-50"
           >
-            {busy ? 'Logging in…' : 'Log in'}
+            {busy ? 'Creating…' : 'Create account'}
           </button>
 
           <p className="font-body text-sm text-sage mt-5">
-            New here?{' '}
-            <Link to="/signup" className="text-teal font-medium">
-              Create an account
+            Already have an account?{' '}
+            <Link to="/login" className="text-teal font-medium">
+              Log in
             </Link>
           </p>
         </form>
