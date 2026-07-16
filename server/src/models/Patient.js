@@ -10,6 +10,7 @@ const patientSchema = new mongoose.Schema(
       enum: ['hi', 'en', 'hi-en'],
       default: 'hi-en',
     },
+    timezone: { type: String, default: 'Asia/Kolkata' },
     stage: {
       type: String,
       enum: ['early', 'middle', 'late'],

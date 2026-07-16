@@ -81,13 +81,18 @@ const getPatient = async (req, res) => {
   }
 };
 
-// GET /api/patients/:patientId/patterns — caregiver + clinician analytics
 const getPatientPatterns = async (req, res) => {
   try {
     const { getPatterns } = require('../services/patterns.service');
-    const data = await getPatterns(
-      new mongoose.Types.ObjectId(req.params.patientId)
-    );
+
+    // Load her first — we need her timezone. Time-of-day patterns are only
+    // meaningful in the patient's own local time, never the server's.
+    const patient = await Patient.findById(req.params.patientId);
+    if (!patient) return res.status(404).json({ error: 'patient not found' });
+
+    // patient._id is already an ObjectId — no casting needed.
+    const data = await getPatterns(patient._id, patient.timezone);
+
     return res.status(200).json(data);
   } catch (err) {
     console.error('getPatientPatterns failed:', err);
@@ -170,7 +175,7 @@ const getDashboard = async (req, res) => {
         DailyNote.find({ patient: patientId })
           .sort({ createdAt: -1 })
           .populate('author', 'name'),
-        getPatterns(new (require('mongoose').Types.ObjectId)(patientId)),
+        getPatterns(new (require('mongoose').Types.ObjectId)(patientId), patient.timezone),
       ]);
 
     return res.status(200).json({

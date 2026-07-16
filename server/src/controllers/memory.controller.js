@@ -6,6 +6,7 @@ const { uploadAudio } = require('../services/storage.service');
 const { transcriptionQueue } = require('../queues/transcription.queue');
 const { embeddingQueue } = require('../queues/embedding.queue');
 const { audit } = require('../services/audit.service');
+const { hourIn } = require('../utils/time');
 
 // POST /api/patients/:patientId/memories — familyAdmin or contributor
 const createAudioMemory = async (req, res) => {
@@ -199,7 +200,7 @@ const askQuestion = async (req, res) => {
       normalizedQuestion: question.trim().toLowerCase().replace(/[?!.,]/g, ''),
       refused: result.refused,
       topScore: result.sources[0]?.score,
-      hourOfDay: new Date().getHours(),
+      hourOfDay: hourIn(patient.timezone),
     }).catch((e) => console.error('interaction log failed:', e.message));
   }
     return res.status(200).json(result);

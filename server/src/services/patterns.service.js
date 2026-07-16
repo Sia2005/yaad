@@ -1,20 +1,29 @@
 const Interaction = require('../models/Interaction');
+const { DEFAULT_TZ } = require('../utils/time');
 
 const DAYS = 7;
 const REPEAT_THRESHOLD = 5;      // same question ≥5 times in a day
 const EVENING_RATIO_FLAG = 0.6;  // >60% of activity in 17:00–22:00
 
-const getPatterns = async (patientId) => {
+const getPatterns = async (patientId, timezone = DEFAULT_TZ) => {
   const since = new Date(Date.now() - DAYS * 24 * 60 * 60 * 1000);
 
-  // 1. Repeated questions per day
+  // 1. Repeated questions per day — grouped by HER day.
+  //    Without `timezone`, $dateToString uses UTC and a "day" would run from
+  //    5:30 AM to 5:30 AM IST, splitting one evening across two days.
   const repeats = await Interaction.aggregate([
     { $match: { patient: patientId, createdAt: { $gte: since } } },
     {
       $group: {
         _id: {
           q: '$normalizedQuestion',
-          day: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          day: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$createdAt',
+              timezone,
+            },
+          },
         },
         count: { $sum: 1 },
       },
@@ -24,7 +33,8 @@ const getPatterns = async (patientId) => {
     { $limit: 10 },
   ]);
 
-  // 2. Hour-of-day distribution
+  // 2. Hour-of-day distribution. hourOfDay was already recorded in her
+  //    timezone at write time, so these buckets are hers.
   const hourBuckets = await Interaction.aggregate([
     { $match: { patient: patientId, createdAt: { $gte: since } } },
     { $group: { _id: '$hourOfDay', count: { $sum: 1 } } },
@@ -56,7 +66,7 @@ const getPatterns = async (patientId) => {
     });
   }
 
-  return { windowDays: DAYS, totalInteractions: total, hourBuckets, alerts };
+  return { windowDays: DAYS, totalInteractions: total, timezone, hourBuckets, alerts };
 };
 
 module.exports = { getPatterns };
