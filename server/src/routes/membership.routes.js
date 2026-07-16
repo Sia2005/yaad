@@ -5,6 +5,7 @@ const {
   inviteMember,
   acceptInvite,
   listMembers,
+  removeMember
 } = require('../controllers/membership.controller');
 
 const router = express.Router({ mergeParams: true });
@@ -16,6 +17,13 @@ router.get(
   requireAuth,
   requireRole('familyAdmin', 'contributor', 'attendant', 'clinician'),
   listMembers
+);
+
+router.delete(
+  '/:membershipId',
+  requireAuth,
+  requireRole('familyAdmin'),
+  removeMember
 );
 
 module.exports = router;
