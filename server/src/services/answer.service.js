@@ -4,7 +4,14 @@ const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || 'gemini-3.1-flash-lite';
 const GEMINI_GENERATE_URL =
   `https://generativelanguage.googleapis.com/v1beta/models/${CHAT_MODEL}:generateContent`;
 
-const MIN_SCORE = 0.55; // below this, chunks are noise — refuse instead
+// Set from measured distributions (npm run calibrate), not guessed.
+// Answerable questions bottom out at 0.8334; noise-tier refusals top out around
+// 0.79. 0.80 blocks noise with a 0.033 margin under the lowest real memory.
+// Deliberately BELOW the 0.83 the sweep suggested — 0.83 separates the classes
+// by 0.0034 on 10 samples each, which is an overfit, not a threshold.
+// A false refusal ("mujhe yaad nahi" about her own wedding) costs more than
+// passing a borderline question to layer 2.
+const MIN_SCORE = 0.80;
 
 // Two refusals: one spoken TO the patient, one spoken to family ABOUT her.
 const REFUSAL_PATIENT =
@@ -64,8 +71,15 @@ const answerQuestion = async (
   const chunks = await retrieveChunks(patientId, question);
   const usable = chunks.filter((c) => c.score >= MIN_SCORE);
 
+  // Layer 1: the score floor. Nothing survived — refuse without calling the
+  // model at all. Cheaper, and one fewer chance to hallucinate.
   if (usable.length === 0) {
-    return { answer: refusalText, refused: true, sources: [] };
+    return {
+      answer: refusalText,
+      refused: true,
+      refusedBy: 'score_floor',
+      sources: [],
+    };
   }
 
   const res = await fetch(
@@ -95,18 +109,22 @@ const answerQuestion = async (
   const answer =
     data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || refusalText;
 
+  // Layer 2: the model's grounded refusal. Chunks cleared the floor but did
+  // not actually contain the answer — this is the case a floor cannot catch.
+  const refused = answer === refusalText;
+
   return {
     answer,
-    refused: answer === refusalText,
-    sources:
-      answer === refusalText
-        ? []
-        : usable.map((c) => ({
-            memoryId: c.memory,
-            chunkId: c._id,
-            score: c.score,
-            source: c.source || 'memory',
-          })),
+    refused,
+    refusedBy: refused ? 'llm' : null,
+    sources: refused
+      ? []
+      : usable.map((c) => ({
+          memoryId: c.memory,
+          chunkId: c._id,
+          score: c.score,
+          source: c.source || 'memory',
+        })),
   };
 };
 

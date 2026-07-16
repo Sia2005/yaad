@@ -5,7 +5,7 @@ const { embedText } = require('./embedding.service');
 
 const TOP_K = 4;
 
-// cosine similarity for the small, in-memory daily-note set
+// Raw cosine similarity: [-1, 1]
 const cosine = (a, b) => {
   let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < a.length; i++) {
@@ -15,6 +15,16 @@ const cosine = (a, b) => {
   }
   return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
 };
+
+/**
+ * Atlas $vectorSearch does NOT return raw cosine — for `cosine` similarity it
+ * normalizes to [0, 1] as (1 + cos) / 2. Our in-memory daily-note search must
+ * apply the SAME transform, or the two streams end up on different scales and
+ * the merged ranking is meaningless: a bio chunk at true cosine 0.70 would
+ * report 0.85 and beat a daily note at true cosine 0.79 reporting 0.79.
+ * Same ruler, or don't compare the measurements.
+ */
+const toAtlasScale = (cos) => (1 + cos) / 2;
 
 const retrieveChunks = async (patientId, question) => {
   // 1. Embed the question — note the QUERY task type
@@ -44,10 +54,9 @@ const retrieveChunks = async (patientId, question) => {
     },
   ]);
 
-  // tag biographical results with their source
   const bioResults = bio.map((r) => ({ ...r, source: 'memory' }));
 
-  // 3. Daily notes: small 48h set, cosine in memory (no second Atlas index needed)
+  // 3. Daily notes: small 48h set, cosine in memory — normalized to match Atlas
   const dailyNotes = await DailyNote.find({ patient: patientId }).lean();
   const dailyResults = dailyNotes
     .filter((n) => Array.isArray(n.embedding) && n.embedding.length)
@@ -55,7 +64,7 @@ const retrieveChunks = async (patientId, question) => {
       text: n.text,
       memory: n._id,
       chunkIndex: 0,
-      score: cosine(queryVector, n.embedding),
+      score: toAtlasScale(cosine(queryVector, n.embedding)),
       source: 'daily',
     }));
 

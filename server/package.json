@@ -9,7 +9,8 @@
     "worker": "nodemon src/workers/transcription.worker.js",
     "embed-worker": "nodemon src/workers/embedding.worker.js",
     "eval": "node src/evals/run-evals.js",
-    "seed": "node src/scripts/seed.js"
+    "seed": "node src/scripts/seed.js",
+    "calibrate": "node src/evals/calibrate.js"
   },
   "keywords": [],
   "author": "",
