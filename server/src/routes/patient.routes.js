@@ -88,4 +88,7 @@ router.use('/:patientId/members', membershipRoutes);
 const memoryRoutes = require('./memory.routes');
 router.use('/:patientId/memories', memoryRoutes);
 
+const personRoutes = require('./person.routes');   
+router.use('/:patientId/people', personRoutes);
+
 module.exports = router;
