@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import RecordMemory from '../../components/RecordMemory';
+import PeopleSection from '../../components/PeopleSection';
 
 // "attendant" is labelled "Caregiver" throughout the UI
 const ROLE_LABEL = {
@@ -65,6 +66,7 @@ export default function Dashboard() {
     approvals: useRef(null),
     access: useRef(null),
     consent: useRef(null),
+    people: useRef(null),
   };
 
   const go = (key) => {
@@ -241,6 +243,7 @@ export default function Dashboard() {
           {can('ask') && <NavItem id="ask" label={`Ask about ${p.name.split(' ')[0]}`} />}
           <NavItem id="today" label="Today's log" count={data.dailyNotes.length} />
           {can('addMemory') && <NavItem id="addMemory" label="Add a life memory" />}
+          <NavItem id="people" label="People" />
           {can('insights') && (
             <NavItem id="insights" label="Doctor insights" count={data.insights.length} />
           )}
@@ -474,6 +477,17 @@ export default function Dashboard() {
               </p>
             </section>
           )}
+
+          {/* PEOPLE — the faces she sees */}
+          <section ref={secs.people} className="mt-10 scroll-mt-8">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="font-display text-xl font-semibold">
+                The people {p.name} loves
+              </h2>
+              <span className="flex-1 h-px bg-teal/15" />
+            </div>
+            <PeopleSection patientId={patientId} patientName={p.name} role={role} />
+          </section>
 
           {/* FAMILY & ACCESS (admin) */}
           {can('access') && (

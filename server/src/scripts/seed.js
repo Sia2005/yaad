@@ -20,7 +20,7 @@ process.env.TZ = 'Asia/Kolkata';
 require('dotenv').config();
 const mongoose = require('mongoose');
 const connectDB = require('../config/db');
-
+const Person = require('../models/Person');
 const User = require('../models/User');
 const Patient = require('../models/Patient');
 const FamilyMembership = require('../models/FamilyMembership');
@@ -190,7 +190,7 @@ const wipe = async () => {
 
   const patients = await Patient.find({ createdBy: { $in: userIds } });
   const patientIds = patients.map((p) => p._id);
-
+  await Person.deleteMany({ patient: { $in: patientIds } });
   if (patientIds.length) {
     await MemoryChunk.deleteMany({ patient: { $in: patientIds } });
     await Memory.deleteMany({ patient: { $in: patientIds } });

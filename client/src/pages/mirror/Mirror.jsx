@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, getToken } from '../../api/client';
+import PersonPhoto from '../../components/PersonPhoto';
 
 const IDLE_CLEAR_MS = 90 * 1000;
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -11,6 +12,8 @@ const SpeechRecognition =
 export default function Mirror() {
   const { patientId } = useParams();
   const [patientName, setPatientName] = useState('');
+  const [people, setPeople] = useState([]);
+  const [person, setPerson] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -19,20 +22,30 @@ export default function Mirror() {
   const audioRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  // fetch the real patient so the Mirror never hardcodes a name
   useEffect(() => {
     api(`/patients/${patientId}`)
       .then((d) => setPatientName(d.patient?.name || ''))
       .catch(() => setPatientName(''));
+
+    // approved cards only — the API refuses to hand her anything unreviewed
+    api(`/patients/${patientId}/people`)
+      .then((d) => setPeople(d.people || []))
+      .catch(() => setPeople([]));
   }, [patientId]);
 
+  // Anything on screen fades back to the prompt after a while. She may walk
+  // away mid-thought and come back an hour later; a stale answer sitting there
+  // is worse than a clean slate.
   useEffect(() => {
-    if (!answer) return;
-    clearTimer.current = setTimeout(() => setAnswer(null), IDLE_CLEAR_MS);
+    if (!answer && !person) return;
+    clearTimer.current = setTimeout(() => {
+      setAnswer(null);
+      setPerson(null);
+    }, IDLE_CLEAR_MS);
     return () => clearTimeout(clearTimer.current);
-  }, [answer]);
+  }, [answer, person]);
 
-  const speakAnswer = async (text) => {
+  const speak = async (text) => {
     try {
       const res = await fetch(`${BASE}/patients/${patientId}/speak`, {
         method: 'POST',
@@ -48,14 +61,24 @@ export default function Mirror() {
       audioRef.current = new Audio(URL.createObjectURL(blob));
       audioRef.current.play().catch(() => {});
     } catch {
-      /* voice is an enhancement; never surface an error to the patient */
+      /* voice is an enhancement; never surface an error to her */
     }
+  };
+
+  const sentenceFor = (p) =>
+    `Yeh ${p.name} hai, ${p.relationship}.${p.story ? ' ' + p.story : ''}`;
+
+  const showPerson = (p) => {
+    setAnswer(null);
+    setPerson(p);
+    speak(sentenceFor(p));
   };
 
   const ask = async (rawQuestion) => {
     const q = (rawQuestion ?? question).trim();
     if (!q || busy) return;
     setBusy(true);
+    setPerson(null);
     setAnswer(null);
     try {
       const r = await api(`/patients/${patientId}/ask`, {
@@ -63,7 +86,7 @@ export default function Mirror() {
         body: { question: q },
       });
       setAnswer({ text: r.answer, refused: r.refused });
-      speakAnswer(r.answer);
+      speak(r.answer);
     } catch {
       setAnswer({ text: 'Ek minute rukiye, phir se poochhiye.', refused: true });
     } finally {
@@ -89,24 +112,16 @@ export default function Mirror() {
     recognition.onstart = () => setListening(true);
     recognition.onerror = () => setListening(false);
     recognition.onend = () => setListening(false);
-
     recognition.onresult = (event) => {
       const transcript = Array.from(event.results)
         .map((r) => r[0].transcript)
         .join('');
       setQuestion(transcript);
-      if (event.results[event.results.length - 1].isFinal) {
-        ask(transcript);
-      }
+      if (event.results[event.results.length - 1].isFinal) ask(transcript);
     };
 
     recognitionRef.current = recognition;
     recognition.start();
-  };
-
-  const onSubmit = (e) => {
-    e.preventDefault();
-    ask();
   };
 
   return (
@@ -120,9 +135,7 @@ export default function Mirror() {
       />
 
       <div className="absolute top-8 left-10 z-10">
-        <div className="font-display text-2xl text-marigold/80 leading-none">
-          Yaad
-        </div>
+        <div className="font-display text-2xl text-marigold/80 leading-none">Yaad</div>
         {patientName && (
           <div className="font-body text-[0.7rem] tracking-[0.15em] uppercase text-marigold/50 mt-1">
             {patientName}
@@ -130,14 +143,42 @@ export default function Mirror() {
         )}
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-[8vw] py-[6vw] z-[1]">
+      {/* ---------------- the stage ---------------- */}
+      <div className="flex-1 flex items-center justify-center px-[8vw] py-[5vw] z-[1]">
         {busy && (
           <p className="font-display italic text-sage text-center text-[clamp(1.6rem,3.5vw,2.6rem)]">
             Yaad kar rahi hoon…
           </p>
         )}
 
-        {!busy && answer && (
+        {!busy && person && (
+          <div className="text-center">
+            <PersonPhoto
+              patientId={patientId}
+              personId={person.id}
+              name={person.name}
+              className="w-[clamp(9rem,18vw,15rem)] h-[clamp(9rem,18vw,15rem)] rounded-full mx-auto ring-4 ring-marigold/40"
+            />
+            <p className="font-display text-paper leading-[1.4] mt-8 text-[clamp(1.8rem,4vw,3.2rem)]">
+              Yeh {person.name} hai,
+              <br />
+              <span className="text-marigold">{person.relationship}</span>.
+            </p>
+            {person.story && (
+              <p className="font-display italic text-sage/90 mt-5 max-w-[22em] mx-auto leading-relaxed text-[clamp(1.1rem,2vw,1.6rem)]">
+                {person.story}
+              </p>
+            )}
+            <button
+              onClick={() => speak(sentenceFor(person))}
+              className="mt-7 font-body text-[clamp(0.95rem,1.6vw,1.15rem)] px-5 py-2.5 rounded-full border border-marigold/40 text-marigold/90 hover:bg-marigold/10 transition"
+            >
+              🔊 Phir se suniye
+            </button>
+          </div>
+        )}
+
+        {!busy && !person && answer && (
           <div className="text-center">
             <p
               className={`font-display font-normal leading-[1.45] max-w-[20em] tracking-[-0.01em] text-[clamp(2rem,4.5vw,3.6rem)] ${
@@ -147,7 +188,7 @@ export default function Mirror() {
               {answer.text}
             </p>
             <button
-              onClick={() => speakAnswer(answer.text)}
+              onClick={() => speak(answer.text)}
               className="mt-8 font-body text-[clamp(1rem,2vw,1.3rem)] px-6 py-3 rounded-full border border-marigold/40 text-marigold/90 hover:bg-marigold/10 transition"
             >
               🔊 Phir se suniye
@@ -155,16 +196,50 @@ export default function Mirror() {
           </div>
         )}
 
-        {!busy && !answer && (
+        {!busy && !person && !answer && (
           <p className="font-display italic text-sage text-center text-[clamp(1.6rem,3.5vw,2.6rem)]">
             Kuch bhi poochhiye
           </p>
         )}
       </div>
 
+      {/* ---------------- the faces ---------------- */}
+      {people.length > 0 && (
+        <div className="z-[1] px-[4vw] pb-2">
+          <div className="flex gap-5 justify-center flex-wrap">
+            {people.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => showPerson(p)}
+                className="group text-center"
+                aria-label={`Yeh kaun hai — ${p.name}`}
+              >
+                <PersonPhoto
+                  patientId={patientId}
+                  personId={p.id}
+                  name={p.name}
+                  className={`w-[clamp(3.5rem,6vw,5rem)] h-[clamp(3.5rem,6vw,5rem)] rounded-full mx-auto transition ring-2 ${
+                    person?.id === p.id
+                      ? 'ring-marigold'
+                      : 'ring-transparent group-hover:ring-marigold/50'
+                  }`}
+                />
+                <span className="block font-body text-[clamp(0.7rem,1.1vw,0.85rem)] text-sage mt-1.5">
+                  {p.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- ask ---------------- */}
       <form
-        onSubmit={onSubmit}
-        className="flex items-center gap-4 px-[4vw] pt-[2.5vw] pb-[4vw] z-[1]"
+        onSubmit={(e) => {
+          e.preventDefault();
+          ask();
+        }}
+        className="flex items-center gap-4 px-[4vw] pt-[1.5vw] pb-[3vw] z-[1]"
       >
         <button
           type="button"
